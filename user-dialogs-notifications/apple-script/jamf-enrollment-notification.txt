@@ -1,0 +1,10 @@
+set JAMFFolder to POSIX path of "/Library/Application Support/JAMF"
+
+tell application "System Events" to set theFolderExists to exists folder JAMFFolder
+
+if theFolderExists then
+	display notification "Your Mac is already enrolled with JAMF!" with title "JAMF Enrollment" subtitle "Well done!"
+
+else
+	display notification "Your Mac needs to be enrolled with JAMF!" with title "JAMF Enrollment" subtitle "Please contact Service Desk:"
+end if
