@@ -12,6 +12,6 @@
 	<key>StartInterval</key>
     <integer>3600</integer>
 	<key>RunAtLoad</key>
-	<true/>
+	<false/>
 </dict>
 </plist>
