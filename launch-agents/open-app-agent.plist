@@ -9,9 +9,14 @@
 		<string>/usr/bin/open</string>
 		<string>/Library/Application Support/[path to the app]</string>
 	</array>
-    <key>StartInterval</key>
-    <integer>3600</integer>
+    <key>StartCalendarInterval</key>
+    <dict>
+		<key>Hour</key>
+		<integer>12</integer>
+		<key>Minute</key>
+		<integer>30</integer>
+	</dict>
 	<key>RunAtLoad</key>
-	<true/>
+	<false/>
 </dict>
 </plist>
