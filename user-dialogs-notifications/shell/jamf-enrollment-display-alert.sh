@@ -1,6 +1,6 @@
 #!/bin/sh
 # check JAMF folder exists
-# show notification
+# show dialog
 
 JAMFFolder="/Library/Application Support/JAMF"
 icon1="/Library/Application Support/Projectname/Project-Icon-Icon.icns"
@@ -9,14 +9,14 @@ currentLanguage=$(sudo -u "$currentUser" osascript -e 'user locale of (get syste
 
 case $currentLanguage in
     'de_DE')
-            message1="Ihr Mac wird noch nicht mit JAMF verwaltet! Bitte wenden Sie sich an die Kollegen von Service Desk."
-            title="JAMF Verwaltung"
+            message1="Ihr Mac wird noch nicht mit Jamf verwaltet! Bitte wenden Sie sich an die Kollegen vom Servicedesk."
+            title="Jamf Verwaltung"
             button1="Verstanden"
           ;;
     *)
-          message1="Your Mac needs to be enrolled with JAMF! Please ask your colleagues at Service Desk."
-          title="JAMF Enrollment"
-          button1="Accept"
+          message1="Your Mac needs to be enrolled with Jamf! Please ask your colleagues at the Servicedesk."
+          title="Jamf Enrollment"
+          button1="Acknowledge"
         ;;
 esac
 
