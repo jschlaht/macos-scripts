@@ -14,14 +14,24 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Jamf Pro Script Parameters
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+daysWithoutRebootLimit="${4:14}" # Default 14 days without reboot
 scriptLog="${5:-"/var/log/checkUpdates.dialog.log"}"   # Parameter 5: Script Log Location [ /var/log/checkUpdates.dialog.log ] (i.e., Your organization's default location for client-side logs)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Uptime, last reboot date, currently logged-in user and language
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-uptimeDays=$(uptime | awk {'print $3'} | sed 's/,/ /g' | sed 's/d/ d/g')
+lastRebootTimestamp=$(sysctl kern.boottime | awk -F'[= |,]' '{print $6}')
+nowTimestamp=$(date +%s)
+now=$(date -jf "%s" "$nowTimestamp" +"%Y-%m-%d %T")
+upTimestamp=$((nowTimestamp-lastRebootTimestamp))
 lastRebootDate=$(date -jf "%s" "$(sysctl kern.boottime | awk -F'[= |,]' '{print $6}')" +"%Y-%m-%d %T")
+uptimeDays=$((upTimestamp/(24*60*60)))
+uptimeHours=$((upTimestamp/(60*60)))
 
+if [[ "${uptimeDays}" -lt "${daysWithoutRebootLimit}" ]]; then
+    updateScriptLog "Param Check: Uptime is below the limit"
+    exit 1
+fi
 currentUser=$( echo "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }' )
 currentLanguage=$(sudo -u "$currentUser" osascript -e 'user locale of (get system info)')
 
@@ -98,11 +108,19 @@ updateScriptLog "Prepare Dialog Values: Start"
 updateScriptLog "Prepare Dialog Values: set updates variables for language ${currentLanguage}"
 
 if [[ "$currentLanguage" == "de_DE" ]]; then
-    title="Ihr Mac ist seit ${uptimeDays} Tag(en) eingeschaltet."
+    if [[ $uptimeDays -gt 0 ]]; then
+        title="Ihr Mac ist seit ${uptimeDays} Tagen eingeschaltet."
+    else
+        title="Ihr Mac ist seit ${uptimeHours} Stunden eingeschaltet."
+    fi
     message="Letzter Neustart erfolgte am ${lastRebootDate}. Bitte asap neustarten!"
 else
-    title="Your Mac since ${uptimeDays} day/dais on."
-    message="Macs last reboot date: ${lastRebootDate}. Please restart asap!"
+    if [[ $uptimeDays -gt 0 ]]; then
+        title="Active for ${uptimeDays} days."
+    else
+        title="Active for ${uptimeHours} hours."
+    fi
+    message="Your Mac last rebooted on ${lastRebootDate}. Please restart it soon!"
 fi
 
 ####################################################################################################
