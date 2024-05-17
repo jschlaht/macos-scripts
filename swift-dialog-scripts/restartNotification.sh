@@ -22,11 +22,11 @@ scriptLog="${5:-"/var/log/checkUpdates.dialog.log"}"   # Parameter 5: Script Log
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 lastRebootTimestamp=$(sysctl kern.boottime | awk -F'[= |,]' '{print $6}')
 nowTimestamp=$(date +%s)
-now=$(date -jf "%s" "$nowTimestamp" +"%Y-%m-%d %T")
 upTimestamp=$((nowTimestamp-lastRebootTimestamp))
 lastRebootDate=$(date -jf "%s" "$(sysctl kern.boottime | awk -F'[= |,]' '{print $6}')" +"%Y-%m-%d %T")
 uptimeDays=$((upTimestamp/(24*60*60)))
 uptimeHours=$((upTimestamp/(60*60)))
+uptimeMinutes=$((upTimestamp/60))
 
 if [[ "${uptimeDays}" -lt "${daysWithoutRebootLimit}" ]]; then
     updateScriptLog "Param Check: Uptime is below the limit"
@@ -47,7 +47,6 @@ exitCode="0"
 # dialog binary, output and options files
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 dialogBinary="/usr/local/bin/dialog"
-dialogOutput="/var/tmp/dialogOutput.json"
 
 ####################################################################################################
 #
@@ -85,10 +84,6 @@ updateScriptLog "Pre-flight Check: Initiating …"
 if [[ -z "${currentUser}" || "${currentUser}" == "loginwindow" ]]; then
     updateScriptLog "Pre-flight Check: No user logged-in; exiting."
     exit 1
-else
-    currentUserFullname=$( id -F "${currentUser}" )
-    currentUserFirstname=$( echo "$currentUserFullname" | cut -d " " -f 1 )
-    currentUserID=$( id -u "${currentUser}" )
 fi
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -110,15 +105,27 @@ updateScriptLog "Prepare Dialog Values: set updates variables for language ${cur
 if [[ "$currentLanguage" == "de_DE" ]]; then
     if [[ $uptimeDays -gt 0 ]]; then
         title="Ihr Mac ist seit ${uptimeDays} Tagen eingeschaltet."
+    elif [[ $uptimeHours -gt 0 ]]; then
+        if [[ $uptimeHours -lt 2 ]]; then
+            title="Ihr Mac ist seit ${uptimeHours} Stunde eingeschaltet."
+        else
+            title="Ihr Mac ist seit ${uptimeHours} Stunden eingeschaltet."
+        fi
     else
-        title="Ihr Mac ist seit ${uptimeHours} Stunden eingeschaltet."
+        title="Ihr Mac ist seit ${uptimeMinutes} Minuten eingeschaltet."
     fi
     message="Letzter Neustart erfolgte am ${lastRebootDate}. Bitte asap neustarten!"
 else
     if [[ $uptimeDays -gt 0 ]]; then
         title="Active for ${uptimeDays} days."
+    elif [[ $uptimeHours -gt 0 ]]; then
+        if [[ $uptimeHours -lt 2 ]]; then
+            title="Active for ${uptimeHours} hour."
+        else
+            title="Active for ${uptimeHours} hours."
+        fi
     else
-        title="Active for ${uptimeHours} hours."
+        title="Active for ${uptimeMinutes} minutes."
     fi
     message="Your Mac last rebooted on ${lastRebootDate}. Please restart it soon!"
 fi
