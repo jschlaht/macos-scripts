@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>DoItLaterTonightAttemptsCount</key>
+	<dict>
+		<key>22G630</key>
+		<integer>1</integer>
+		<key>23E224</key>
+		<integer>1</integer>
+	</dict>
+	<key>LastAttemptBuildVersion</key>
+	<string>13.4.1 (22F82)</string>
+	<key>LastAttemptSystemVersion</key>
+	<string>13.4.1 (22F82)</string>
+	<key>LastBackgroundSuccessfulDate</key>
+	<date>2024-06-17T20:11:33Z</date>
+	<key>LastFullSuccessfulDate</key>
+	<date>2024-06-17T20:11:22Z</date>
+	<key>LastRecommendedMajorOSBundleIdentifier</key>
+	<string></string>
+	<key>LastRecommendedUpdatesAvailable</key>
+	<integer>2</integer>
+	<key>LastResultCode</key>
+	<integer>2</integer>
+	<key>LastSessionSuccessful</key>
+	<true/>
+	<key>LastSuccessfulDate</key>
+	<date>2024-06-17T20:11:22Z</date>
+	<key>LastUpdatesAvailable</key>
+	<integer>2</integer>
+	<key>PrimaryLanguages</key>
+	<array>
+		<string>de</string>
+		<string>de-DE</string>
+	</array>
+	<key>RecommendedUpdates</key>
+	<array>
+		<dict>
+			<key>Display Name</key>
+			<string>macOS Ventura 13.6.7</string>
+			<key>Display Version</key>
+			<string>13.6.7</string>
+			<key>Identifier</key>
+			<string>MSU_UPDATE_22G720_patch_13.6.7_minor</string>
+			<key>MobileSoftwareUpdate</key>
+			<true/>
+			<key>Product Key</key>
+			<string>MSU_UPDATE_22G720_patch_13.6.7_minor</string>
+		</dict>
+		<dict>
+			<key>Display Name</key>
+			<string>Safari</string>
+			<key>Display Version</key>
+			<string>16.0</string>
+			<key>Identifier</key>
+			<string>Safari16.0MontereyAuto</string>
+			<key>Product Key</key>
+			<string>012-49737</string>
+		</dict>
+	</array>
+</dict>
+</plist>

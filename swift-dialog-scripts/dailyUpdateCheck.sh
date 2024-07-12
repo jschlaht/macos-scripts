@@ -16,8 +16,14 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Jamf Pro Script Parameters
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-button1action="${4:-"jamfselfservice://content?entity=policy&id=81&action=execute"}"                # Parameter 4: Button 1 action URL [ URL for [execute|view] of install recommended updates policy ]
+button1action="${4:-"jamfselfservice://content?entity=policy&id=192&action=view"}"                # Parameter 4: Button 1 action URL [ open system preference panes for software updates ]
+#button1action="${4:-"open 'x-apple.systempreferences:com.apple.preferences.softwareupdate'"}"                # Parameter 4: Button 1 action URL [ open system preference panes for software updates ]
 scriptLog="${5:-"/var/log/checkUpdates.dialog.log"}"                                           # Parameter 5: Script Log Location [ /var/log/checkUpdates.dialog.log ] (i.e., Your organization's default location for client-side logs)
+upgradeURL="${6:-"jamfselfservice://content?entity=policy&id=176&action=view"}"             # Parameter 6: URL to latest upgrade policy
+upgradeTo13="${7:-"jamfselfservice://content?entity=policy&id=60&action=view"}"             # Parameter 7: URL to macOS 13 Ventura upgrade policy
+upgradeTo12="${8:-"jamfselfservice://content?entity=policy&id=62&action=view"}"             # Parameter 8: URL to macOS 12 Monterey upgrade policy
+upgradeTo11="${9:-"jamfselfservice://content?entity=policy&id=63&action=view"}"             # Parameter 9: URL to macOS 11 BigSur upgrade policy
+updateWithRestart="${10:-"jamfselfservice://content?entity=policy&id=81&action=view"}"             # Parameter 10: URL for update with force restart
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Operating System, currently logged-in user and language
@@ -30,6 +36,8 @@ currentUser=$( echo "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { p
 currentLanguage=$(sudo -u "$currentUser" osascript -e 'user locale of (get system info)')
 
 exitCode="0"
+
+upgradePossible="upgrade-no"
 
 ####################################################################################################
 #
@@ -191,25 +199,42 @@ EOT
 # Prepare Dialog Values: check number of available updates
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
+#number_of_available_os_updates=$(defaults read /Users/jschlaht/Projects/macos-scripts-github/swift-dialog-scripts/com.apple.SoftwareUpdate-2.plist LastRecommendedUpdatesAvailable)
 number_of_available_os_updates=$(defaults read /Library/Preferences/com.apple.SoftwareUpdate.plist LastRecommendedUpdatesAvailable)
 
 updateScriptLog "Prepare Dialog Values: ${number_of_available_os_updates} available"
 
+# shellcheck disable=SC2071
 if [[ ${number_of_available_os_updates} > 0 ]]; then
 
     updateScriptLog "Prepare Dialog Values: set updates variables for language ${currentLanguage}"
 
+    if [[ ${number_of_available_os_updates} > 0 ]]; then
+      height=425
+    fi
+    if [[ ${number_of_available_os_updates} > 1 ]]; then
+      height=485
+    fi
+    if [[ ${number_of_available_os_updates} > 2 ]]; then
+      height=525
+    fi
+    if [[ ${number_of_available_os_updates} > 3 ]]; then
+      height=585
+    fi
+
     if [[ "$currentLanguage" == "de_DE" ]]; then
-        title="Ihr Mac auf verfügbare macOS Updates prüfen"
-        button1text="Updates ausführen"
-        button2text="Updates verschieben"
+        title="Für Ihr Mac verfügbare macOS Updates"
+        button1text="Update ausführen"
+        button2text="Update verschieben"
+        button3text="Upgrade starten"
         infobuttontext="Mehr Informationen"
-        message="Für Ihr Mac sind folgende Updates verfügbar.\\n\\n Diese sind von uns geprüft und werden _dringend_ empfohlen!\\n\\n Bitte aktualisieren Sie ihr macOS indem Sie auf **_Updates ausführen_** klicken!"
+        message="Für Ihr Mac sind folgende Updates verfügbar.\\n\\n Diese sind von uns geprüft und werden _dringend_ empfohlen!\\n\\n Bitte aktualisieren Sie Ihr macOS über Systemeinstellungen indem Sie auf **_Updates ausführen_** klicken!"
         restart_message="Neustart notwendig!"
     else
-        title="Check for macOS updates on your Mac"
-        button1text="run updates"
-        button2text="postpone updates"
+        title="macOS updates available for your Mac"
+        button1text="run update"
+        button2text="postpone update"
+        button3text="start upgrade"
         infobuttontext="Click here for more details"
         message="The following updates are available for your Mac.\\n\\n These have been tested by us and are _strongly_ recommended!\\n\\n Please update your macOS by clicking on **_run updates_**!"
         restart_message="Restart required!"
@@ -220,16 +245,15 @@ if [[ ${number_of_available_os_updates} > 0 ]]; then
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     updateScriptLog "Prepare Dialog Values: updates-available settings for swiftDialog "
 
+    number_upgrades_with_restart=0
+    number_updates_with_restart=0
+    number_updates_without_restart=0
+
     tee -a "$optionsFile" << EOF
-    "title" : "${title}",
-    "message" : "${message}",
     "messagefont" : "weight=light,size=16,name=Helvetica",
     "button1text" : "${button1text}",
     "button2text" : "${button2text}",
-    "button1action" : "${button1action}",
-    "infobuttontext" : "${infobuttontext}",
-    "infobuttonaction" : "${infobuttonaction}",
-    "height" : "625",
+    "height" : "${height}",
     "infobutton" : 1,
     "listitem" : [
 EOF
@@ -241,9 +265,27 @@ EOF
 
     for ((i = 0 ; i < ${number_of_available_os_updates} ; i++)); do
         # prod settigns
-        update_name=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:Display\ Name" /Library/Preferences/com.apple.SoftwareUpdate.plist)
-        update_version=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:Display\ Version" /Library/Preferences/com.apple.SoftwareUpdate.plist)
-        restart_required=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:MobileSoftwareUpdate" /Library/Preferences/com.apple.SoftwareUpdate.plist)
+        #config_file="./com.apple.SoftwareUpdate-2.plist"
+        config_file="/Library/Preferences/com.apple.SoftwareUpdate.plist"
+        update_name=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:Display\ Name" ${config_file})
+        update_version=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:Display\ Version" ${config_file})
+        restart_required=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:MobileSoftwareUpdate" ${config_file})
+        identifier=$(/usr/libexec/PlistBuddy -c "print :RecommendedUpdates:${i}:Identifier" ${config_file})
+
+        update_type=${identifier##*_}
+        if [[ ${update_type} == 'major' ]]; then
+          update_name="Upgrade - ${update_name}"
+          upgradePossible="upgrade-yes"
+          number_upgrades_with_restart=$((number_upgrades_with_restart+1))
+          upgradeVersion=${update_version}
+        else
+          update_name="Update - ${update_name}"
+          if [[ ${restart_required} ]]; then
+              number_updates_with_restart=$((number_updates_with_restart+1))
+          else
+              number_updates_without_restart=$((number_updates_without_restart+1))
+          fi
+        fi
 
         update_icon="${overlayIcon}"
         if [[ ${update_name} == 'Safari' ]]; then
@@ -268,40 +310,63 @@ EOF
         fi
     done
 
+    tee -a "$optionsFile" << EOF
+    ],
+EOF
+
+  if [[ ${upgradePossible} == "upgrade-yes" ]]; then
+    if [[ "$currentLanguage" == "de_DE" ]]; then
+        title="Für Ihr Mac verfügbare macOS Updates und ein Upgrade"
+        message="Für Ihr Mac sind folgende Updates und ein Upgrade verfügbar.\\n\\n Updates sind von uns geprüft und werden _dringend_ empfohlen!\\n\\n Bitte aktualisieren Sie Ihr macOS über Systemeinstellungen indem Sie auf **_Updates ausführen_** klicken!"
+    else
+        title="macOS updates and an upgrade available for your Mac"
+        message="The following updates and an upgrade are available for your Mac.\\n\\n These have been tested by us and are _strongly_ recommended!\\n\\n Please update your macOS by clicking on **_run updates_**!"
+    fi
+    # define upgrade major version
+    upgradeMajorVersion=$(echo ${upgradeVersion} | awk -F. '{ print $1; }')
+    if [[ ${upgradeMajorVersion} == 13 ]]; then
+      upgradeURL=${upgradeTo13}
+    fi
+    if [[ ${upgradeMajorVersion} == 12 ]]; then
+      upgradeURL=${upgradeTo12}
+    fi
+    if [[ ${upgradeMajorVersion} == 11 ]]; then
+      upgradeURL=${upgradeTo11}
+    fi
+    tee -a "$optionsFile" << EOF
+      "infobuttontext" : "${button3text}",
+      "infobuttonaction" : "${upgradeURL}",
+EOF
+  else
+    tee -a "$optionsFile" << EOF
+      "infobuttontext" : "${infobuttontext}",
+      "infobuttonaction" : "${infobuttonaction}",
+EOF
+  fi
+
+  if [[ ${number_updates_with_restart} -gt 0 ]]; then
+    tee -a "$optionsFile" << EOF
+      "button1action" : "${updateWithRestart}",
+EOF
+  elif [[ ${number_updates_without_restart} -gt 0 ]]; then
+    tee -a "$optionsFile" << EOF
+      "button1action" : "${button1action}",
+EOF
+  else
+    tee -a "$optionsFile" << EOF
+      "button2text" : "none",
+EOF
+  fi
+
     tee -a "$optionsFile" << END
-    ]
+    "message" : "${message}",
+    "title" : "${title}"
 }
 END
 
 else
-    updateScriptLog "Prepare Dialog Values: set up to date variables for language ${currentLanguage}"
-
-    if [[ "$currentLanguage" == "de_DE" ]]; then
-        title="Ihr Mac auf verfügbare macOS Updates prüfen"
-        button1text="Schliessen"
-        message="### Herzlichen Glückwunsch!\\n\\n Ihr macOS ist aktuell, keine Updates erforderlich!"
-    else
-        title="Check for macOS updates on your Mac"
-        button1text="close"
-        message="### Congratulations!\\n\\n Your macOS is up to date, no updates required!"
-    fi
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # Prepare Dialog Values: no updates available settings for swiftDialog
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    updateScriptLog "Prepare Dialog Values: no updates available settings for swiftDialog "
-
-    tee -a "$optionsFile" << EOF
-    "title" : "${title}",
-    "message" : "${message}",
-    "messagefont" : "weight=light,size=20,name=Helvetica",
-    "height" : "525",
-    "timer" : 5,
-    "hidetimerbar" : 1,
-    "button1text" : "${button1text}",
-}
-EOF
-
+  updateScriptLog "Execute Dialog: no updates -> exit"
+  exit "${exitCode}"
 fi
 
 ####################################################################################################
@@ -311,10 +376,19 @@ fi
 ####################################################################################################
 updateScriptLog "Execute Dialog: execute swiftDialog with given optionsfile and infobox"
 
-${dialogBinary} \
-    --jsonfile ${optionsFile}  \
-    -o \
-    --infobox "#### User  \n - ${currentUser}  \n#### macOS  \n - version ${osVersion}  \n - build ${osBuild}"
+if [[ ${number_updates_with_restart} -eq 0 && ${number_updates_without_restart} -eq 0 ]]; then
+  ${dialogBinary} \
+      --jsonfile ${optionsFile}  \
+      -o \
+      --infobox "#### User  \n - ${currentUser}  \n#### macOS  \n - version ${osVersion}  \n - build ${osBuild}"
+      --button1disabled
+else
+  ${dialogBinary} \
+      --jsonfile ${optionsFile}  \
+      -o \
+      --infobox "#### User  \n - ${currentUser}  \n#### macOS  \n - version ${osVersion}  \n - build ${osBuild}"
+fi
+
 
 returncode=$?
 
@@ -325,8 +399,9 @@ updateScriptLog "Execute Dialog: handle returncode ${returncode}"
 
 case ${returncode} in
   0)
-  echo "Pressed OK"
   #open -b com.apple.systempreferences /System/Library/PreferencePanes/SoftwareUpdate.prefPane
+  open 'x-apple.systempreferences:com.apple.preferences.softwareupdate'
+  echo "Pressed OK"
   # Button 1 processing here
   ;;
   2)
@@ -336,6 +411,7 @@ case ${returncode} in
   3)
   echo "Pressed Info Button (button 3)"
   # Button 3 processing here
+  # open ${upgradeURL}
   ;;
   4)
   echo "Timer Expired"
@@ -357,7 +433,7 @@ case ${returncode} in
 esac
 
 updateScriptLog "Execute Dialog: remove options file"
-rm $optionsFile
+#rm $optionsFile
 
 updateScriptLog "Execute Dialog: exit"
 exit "${exitCode}"
